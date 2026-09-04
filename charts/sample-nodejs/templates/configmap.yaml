@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sample-nodejs.fullname" . }}
+  labels:
+    {{- include "sample-nodejs.labels" . | nindent 4 }}
+data:
+  APP_ENV: {{ (.Values.ConfigMap | default dict).appEnv | default "development" | quote }}
+  LOG_LEVEL: {{ (.Values.ConfigMap | default dict).logLevel | default "info" | quote }}
+  
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sample-nodejs.fullname" . }}
+  labels:
+    {{- include "sample-nodejs.labels" . | nindent 4 }}
+  
+data:
+  APP_ENV: {{ default "development" (hasKey .Values "config" | ternary (get .Values.config "appEnv") "") | quote }}
+  LOG_LEVEL: {{ default "info" (hasKey .Values "config" | ternary (get .Values.config "logLevel") "") | quote }}
