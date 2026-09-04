@@ -43,9 +43,9 @@ jobs:
 
       # סריקת קוד המקור ב-Semgrep (מכשיל על Critical)
       - name: Run Semgrep SAST
-        uses: semgrep/actions@v1
+        uses: semgrep/semgrep-action@v1
         with:
-          config: p/ci
+          config: p/default
         env:
           SEMGREP_RULES: p/security-audit p/javascript
 
