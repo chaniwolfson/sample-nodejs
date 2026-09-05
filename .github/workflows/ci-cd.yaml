@@ -37,19 +37,29 @@ jobs:
   security-sast:
     needs: lint-and-test
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    container:
+      image: semgrep/semgrep:latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # סריקת קוד המקור ב-Semgrep (מכשיל על Critical)
-      - name: Run Semgrep SAST
-        uses: semgrep/semgrep-action@v1
-        with:
-          config: p/default
-        env:
-          SEMGREP_RULES: p/security-audit p/javascript
+      - name: Run Semgrep SAST Scan
+        run: semgrep scan --config=auto --error --severity=ERROR
 
-      # סריקת פגיעויות בספריות npm (מכשיל על Critical)
+  # שלב סריקת תלויות (npm audit) מורץ בנפרד/בהמשך
+  security-audit:
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
       - name: Run npm audit
         run: npm audit --audit-level=critical
 
