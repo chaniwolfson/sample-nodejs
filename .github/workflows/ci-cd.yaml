@@ -110,7 +110,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           extra_plugins: |
-<<<<<<< Updated upstream
              @semantic-release/git
              @semantic-release/changelog
 
@@ -122,7 +121,6 @@ jobs:
               VERSION="1.0.0-${{ github.sha }}"
             fi
               echo "version=$VERSION" >> $GITHUB_OUTPUT
-=======
             @semantic-release/git
             @semantic-release/changelog
 
@@ -134,17 +132,13 @@ jobs:
             VERSION="1.0.0-${{ github.sha }}"
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
->>>>>>> Stashed changes
 
   # ----------------------------------------------------
   # שלב 4: בנייה, סריקת אימג' ודחיפה (Build, Trivy Scan & Push)
   # ----------------------------------------------------
   build-and-push:
     needs: version-release
-<<<<<<< Updated upstream
-=======
     # ה-Job ירוץ רק אם פורסמה גרסה חדשה ב-semantic-release
->>>>>>> Stashed changes
     if: needs.version-release.outputs.released == 'true'
     runs-on: ubuntu-latest
     steps:
