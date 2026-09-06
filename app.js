@@ -1,4 +1,5 @@
 const express = require('express');
+const packageJson = require('./package.json');
 const promClient = require('prom-client');
 
 const app = express();
@@ -6,6 +7,10 @@ const port = process.env.PORT || 8080;
 
 // Create a Registry to register the metrics
 const register = new promClient.Registry();
+
+// קריאת הגרסה: קודם ממשתנה הסביבה (Production), ואם אינו קיים - מ-package.json (Dev)
+const APP_VERSION = process.env.APP_VERSION || packageJson.version;
+
 
 // Enable the collection of default metrics
 promClient.collectDefaultMetrics({ register });
@@ -15,6 +20,10 @@ const helloWorldCounter = new promClient.Counter({
     help: 'Total number of accesses to the root path',
 });
 register.registerMetric(helloWorldCounter);
+
+app.get('/version', (req, res) => {
+  res.json({ version: APP_VERSION });
+});
 
 // Define routes
 app.get('/my-app', (req, res) => {
