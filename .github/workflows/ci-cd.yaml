@@ -8,7 +8,7 @@ on:
 
 jobs:
   # ----------------------------------------------------
-  # שלב 1: אימות איכות קוד וטמפלטים (Linting & Testing)
+  # שלב 1: אימות איכות קוד וטמפלטים (Linting & Testing) - רץ במקביל
   # ----------------------------------------------------
   lint-and-test:
     runs-on: ubuntu-latest
@@ -32,7 +32,7 @@ jobs:
           helm lint ./charts/sample-nodejs
 
   # ----------------------------------------------------
-  # שלב 2: אבטחת קוד ותלויות (SAST & Dependency Scan)
+  # שלב 2: אבטחת קוד ותלויות (SAST & Dependency Scan) - רץ במקביל
   # ----------------------------------------------------
   security-sast:
     needs: lint-and-test
@@ -49,7 +49,7 @@ jobs:
 
   # שלב סריקת תלויות (npm audit) מורץ בנפרד/בהמשך
   security-audit:
-    needs: lint-and-test
+    needs: security-sast
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -66,47 +66,49 @@ jobs:
   # ----------------------------------------------------
   # שלב 3: גזירת גרסה ותגיות (Version Bumping & Release)
   # ----------------------------------------------------
-  version-release:
-    needs: security-sast
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-    outputs:
-      new_version: ${{ steps.set-version.outputs.version }}
-      released: ${{ steps.semantic.outputs.new_release_published }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      version-release:
+        needs: [lint-and-test, security-sast, security-audit]
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        runs-on: ubuntu-latest
+        permissions:
+          contents: write
+          issues: write
+          pull-requests: write
+        outputs:
+          new_version: ${{ steps.set-version.outputs.version }}
+          released: ${{ steps.semantic.outputs.new_release_published }}
+        steps:
+          - name: Checkout repository
+            uses: actions/checkout@v4
+            with:
+              fetch-depth: 0
 
-      - name: Semantic Release
-        id: semantic
-        uses: cycjimmy/semantic-release-action@v4
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          extra_plugins: |
-            @semantic-release/git
-            @semantic-release/changelog
+          - name: Semantic Release
+            id: semantic
+            uses: cycjimmy/semantic-release-action@v4
+            env:
+              GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            with:
+              extra_plugins: |
+                @semantic-release/git
+                @semantic-release/changelog
 
-      - name: Calculate Release Version
-        id: set-version
-        run: |
-          VERSION="${{ steps.semantic.outputs.new_release_version }}"
-          if [ -z "$VERSION" ]; then
-            VERSION="1.0.0-${{ github.sha }}"
-          fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          - name: Calculate Release Version
+            id: set-version
+            run: |
+              VERSION="${{ steps.semantic.outputs.new_release_version }}"
+              if [ -z "$VERSION" ]; then
+                VERSION="1.0.0-${{ github.sha }}"
+              fi
+              echo "version=$VERSION" >> $GITHUB_OUTPUT
 
   # ----------------------------------------------------
   # שלב 4: בנייה, סריקת אימג' ודחיפה (Build, Trivy Scan & Push)
   # ----------------------------------------------------
   build-and-push:
     needs: version-release
+    # ה-Job ירוץ רק אם פורסמה גרסה חדשה ב-semantic-release
+    if: needs.version-release.outputs.released == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
