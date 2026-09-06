@@ -113,17 +113,6 @@ jobs:
              @semantic-release/git
              @semantic-release/changelog
 
-        - name: Calculate Release Version
-          id: set-version
-          run: |
-            VERSION="${{ steps.semantic.outputs.new_release_version }}"
-            if [ -z "$VERSION" ]; then
-              VERSION="1.0.0-${{ github.sha }}"
-            fi
-              echo "version=$VERSION" >> $GITHUB_OUTPUT
-            @semantic-release/git
-            @semantic-release/changelog
-
       - name: Calculate Release Version
         id: set-version
         run: |
