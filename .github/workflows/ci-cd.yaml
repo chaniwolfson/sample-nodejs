@@ -25,7 +25,7 @@ jobs:
       - name: Install dependencies & Run Tests
         run: |
           npm ci
-          npm test --if-present || true
+          npm test --if-present
 
       - name: Lint Helm Chart
         run: |
@@ -47,9 +47,8 @@ jobs:
       - name: Run Semgrep SAST Scan
         run: semgrep scan --config=auto --error --severity=ERROR
 
-  # שלב סריקת תלויות (npm audit) מורץ בנפרד/בהמשך
   security-audit:
-    needs: lint-and-test
+    needs: security-sast
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -67,7 +66,7 @@ jobs:
   # שלב 3: גזירת גרסה ותגיות (Version Bumping & Release)
   # ----------------------------------------------------
   version-release:
-    needs: security-sast
+    needs: [lint-and-test, security-sast, security-audit]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
@@ -107,6 +106,7 @@ jobs:
   # ----------------------------------------------------
   build-and-push:
     needs: version-release
+    if: needs.version-release.outputs.released == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -121,7 +121,6 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 1. בניית האימג' לוקאלית בלבד לצורך סריקה
       - name: Build Docker Image for scanning
         uses: docker/build-push-action@v5
         with:
@@ -129,7 +128,6 @@ jobs:
           load: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/sample-nodejs:${{ needs.version-release.outputs.new_version }}
 
-      # 2. סריקת ה-Image באמצעות Trivy (חסימה על HIGH ו-CRITICAL)
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
@@ -140,7 +138,6 @@ jobs:
           vuln-type: 'os,library'
           severity: 'HIGH,CRITICAL'
 
-      # 3. דחיפה ל-Docker Hub רק לאחר סריקה מוצלחת
       - name: Push Docker Image to Docker Hub
         uses: docker/build-push-action@v5
         with:
