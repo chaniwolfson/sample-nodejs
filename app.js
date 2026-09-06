@@ -22,6 +22,7 @@ app.get('/my-app', (req, res) => {
     res.send('Hello, World!');
 });
 
+// About
 app.get('/about', (req, res) => {
     res.send('This is a sample Node.js application for Kubernetes deployment testing.');
 });
