@@ -54,6 +54,20 @@ jobs:
       - name: Run Semgrep SAST Scan
         run: semgrep scan --config=auto --error --severity=ERROR
 
+  security-secrets:
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks (Secret Scanning)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
   security-audit:
     needs: security-sast
     runs-on: ubuntu-latest
@@ -73,7 +87,7 @@ jobs:
   # שלב 3: גזירת גרסה ותגיות (Version Bumping & Release)
   # ----------------------------------------------------
   version-release:
-    needs: [lint-and-test, security-sast, security-audit]
+    needs: [lint-and-test, security-sast, security-secrets, security-audit]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
