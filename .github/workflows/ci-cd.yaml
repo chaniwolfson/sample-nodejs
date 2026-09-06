@@ -22,15 +22,22 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
-      - name: Install dependencies & Run Tests
+      - name: Install dependencies & Run Tests with Coverage
         run: |
           npm ci
-          npm test --if-present
+          npm run test-coverage --if-present
+
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: code-coverage-report
+          path: coverage/
 
       - name: Lint Helm Chart
         run: |
           helm lint ./charts/sample-nodejs
-
+          
   # ----------------------------------------------------
   # שלב 2: אבטחת קוד ותלויות (SAST & Dependency Scan)
   # ----------------------------------------------------
@@ -47,6 +54,19 @@ jobs:
       - name: Run Semgrep SAST Scan
         run: semgrep scan --config=auto --error --severity=ERROR
 
+  security-secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
   security-audit:
     needs: security-sast
     runs-on: ubuntu-latest
@@ -66,7 +86,7 @@ jobs:
   # שלב 3: גזירת גרסה ותגיות (Version Bumping & Release)
   # ----------------------------------------------------
   version-release:
-    needs: [lint-and-test, security-sast, security-audit]
+    needs: [lint-and-test, security-sast, security-secrets, security-audit]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
