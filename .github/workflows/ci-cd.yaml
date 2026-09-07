@@ -153,4 +153,5 @@ jobs:
           
           git add ./charts/sample-nodejs/values.yaml
           git commit -m "chore(release): update helm chart image tag to ${{ needs.build-and-push.outputs.release_version }} [skip ci]"
-          git push origin main
+          # דחיפה מ-HEAD אל ענף main ב-GitHub
+          git push origin HEAD:main
