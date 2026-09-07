@@ -5,7 +5,7 @@
 replicaCount: 1
 
 image:
-  repository: chaniwolfson/sample-nodejs
+  repository: chanigu/sample-nodejs
   pullPolicy: Always
   tag: "latest"
 
