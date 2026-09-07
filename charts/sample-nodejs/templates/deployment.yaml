@@ -53,7 +53,7 @@ spec:
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "sample-nodejs.fullname" . }}
+                  name: {{ include "sample-nodejs.fullname" . }}-secret
                   key: dbPassword
           ports:
             - name: http

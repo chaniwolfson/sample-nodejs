@@ -1,15 +1,17 @@
-name: CI/CD & DevSecOps Pipeline
+name: CI/CD Pipeline
 
 on:
-  push:
-    branches: [ main ]
   pull_request:
     branches: [ main ]
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*.*.*' # יריץ את ה-Build וה-Push אך ורק כשנדחפת תגית במבנה vX.Y.Z
 
 jobs:
-  # ----------------------------------------------------
-  # שלב 1: אימות איכות קוד וטמפלטים (Linting & Testing)
-  # ----------------------------------------------------
+  # ====================================================
+  # שלב 1: אימות, בדיקות יחידה וסריקות אבטחה
+  # ====================================================
   lint-and-test:
     runs-on: ubuntu-latest
     steps:
@@ -22,25 +24,18 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
-      - name: Install dependencies & Run Tests with Coverage
+      - name: Install dependencies & Run Tests
         run: |
           npm ci
           npm run test:coverage --if-present
-
-      - name: Upload Coverage Report
-        uses: actions/upload-artifact@v4
-        if: always()
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
         with:
-          name: code-coverage-report
-          path: coverage/
-
+          version: 'v3.14.0'
       - name: Lint Helm Chart
         run: |
           helm lint ./charts/sample-nodejs
 
-  # ----------------------------------------------------
-  # שלב 2: בדיקות אבטחה במקביל (Security Checks)
-  # ----------------------------------------------------
   security-checks:
     needs: lint-and-test
     runs-on: ubuntu-latest
@@ -71,53 +66,31 @@ jobs:
         uses: semgrep/semgrep-action@v1
         with:
           config: auto
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run npm audit
         if: matrix.check-type == 'audit'
         run: npm audit --audit-level=critical
 
-  # ----------------------------------------------------
-  # שלב 3: גזירת גרסה ותגיות (Version Bumping & Release)
-  # ----------------------------------------------------
-  version-release:
-    needs: [lint-and-test, security-checks]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    outputs:
-      new_version: ${{ steps.set-ver.outputs.version }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Compute Build Tag
-        id: set-ver
-        run: |
-          BASE_VER=$(node -p "require('./package.json').version")
-          VERSION="${BASE_VER}-${GITHUB_RUN_NUMBER}"
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "Generated version: ${VERSION}"
-
-      - name: Configure Git & Create Tag
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "v${{ steps.set-ver.outputs.version }}"
-          git push origin "v${{ steps.set-ver.outputs.version }}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # ----------------------------------------------------
-  # שלב 4: בנייה, סריקת אימג' ודחיפה (Build, Trivy Scan & Push)
-  # ----------------------------------------------------
+  # ====================================================
+  # שלב 2: בנייה, סריקת אימג' ודחיפה (רק ב-Release Tag)
+  # ====================================================
   build-and-push:
-    needs: version-release
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [lint-and-test, security-checks]
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      # חילוץ הגרסה ללא ה-v (למשל מ-v1.0.1 ל-1.0.1)
+      - name: Extract Release Version
+        id: get_version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "RELEASE_VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Building release version: ${VERSION}"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -134,25 +107,51 @@ jobs:
           context: .
           load: true
           push: false
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/sample-nodejs:${{ needs.version-release.outputs.new_version }}
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/sample-nodejs:${{ steps.get_version.outputs.RELEASE_VERSION }}
           build-args: |
-            APP_VERSION=${{ needs.version-release.outputs.new_version }}
+            APP_VERSION=${{ steps.get_version.outputs.RELEASE_VERSION }}
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: '${{ secrets.DOCKERHUB_USERNAME }}/sample-nodejs:${{ needs.version-release.outputs.new_version }}'
+          image-ref: '${{ secrets.DOCKERHUB_USERNAME }}/sample-nodejs:${{ steps.get_version.outputs.RELEASE_VERSION }}'
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'HIGH,CRITICAL'
 
-      - name: Push Docker Image to Docker Hub
+      - name: Push Docker Image to Registry
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/sample-nodejs:${{ needs.version-release.outputs.new_version }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/sample-nodejs:${{ steps.get_version.outputs.RELEASE_VERSION }}
             ${{ secrets.DOCKERHUB_USERNAME }}/sample-nodejs:latest
+          build-args: |
+            APP_VERSION=${{ steps.get_version.outputs.RELEASE_VERSION }}
+
+      # --------------------------------------------------
+      # ה-Step להזרקת הסיקרט וביצוע הפריסה (Deploy)
+      # --------------------------------------------------
+      # 1. התקנת Helm ב-Runner
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.14.0'
+
+      # 2. הגדרת החיבור לקלאסטר Kubernetes
+      - name: Set Kubernetes Context
+        uses: azure/k8s-set-context@v4
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBE_CONFIG }}
+
+      # 3. ביצוע הפריסה לקלאסטר
+      - name: Deploy Helm Chart
+        run: |
+          helm upgrade --install sample-nodejs ./charts/sample-nodejs \
+            --namespace default \
+            --set image.tag="${{ steps.get_version.outputs.RELEASE_VERSION }}" \
+            --set secret.dbPassword="${{ secrets.DB_PASSWORD }}"
