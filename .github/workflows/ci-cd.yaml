@@ -8,6 +8,10 @@ on:
     tags:
       - 'v*.*.*' # יריץ את ה-Build וה-Push אך ורק כשנדחפת תגית במבנה vX.Y.Z
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   # ====================================================
   # שלב 1: אימות, בדיקות יחידה וסריקות אבטחה
@@ -28,13 +32,15 @@ jobs:
         run: |
           npm ci
           npm run test:coverage --if-present
+
       - name: Setup Helm
         uses: azure/setup-helm@v4
         with:
           version: 'v3.14.0'
+
       - name: Lint Helm Chart
         run: |
-          helm lint ./charts/sample-nodejs
+          helm lint ./charts/sample-nodejs --set secret.dbPassword="dummy_password"
 
   security-checks:
     needs: lint-and-test
@@ -118,7 +124,7 @@ jobs:
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
-          vuln-type: 'os,library'
+          vuln-type: 'library'
           severity: 'HIGH,CRITICAL'
 
       - name: Push Docker Image to Registry
@@ -148,7 +154,17 @@ jobs:
           method: kubeconfig
           kubeconfig: ${{ secrets.KUBE_CONFIG }}
 
-      # 3. ביצוע הפריסה לקלאסטר
+      # 3. יצירת/עדכון ה-Secret למשיכת האימג' מ-Docker Hub בתוך הקלאסטר
+      - name: Create Image Pull Secret
+        run: |
+          kubectl create secret docker-registry dockerhub-secret \
+            --namespace default \
+            --docker-server=https://index.docker.io/v1/ \
+            --docker-username=${{ secrets.DOCKERHUB_USERNAME }} \
+            --docker-password=${{ secrets.DOCKERHUB_TOKEN }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      # 4. ביצוע הפריסה לקלאסטר
       - name: Deploy Helm Chart
         run: |
           helm upgrade --install sample-nodejs ./charts/sample-nodejs \
