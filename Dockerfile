@@ -11,8 +11,12 @@ ARG APP_VERSION=1.0.0
 ENV APP_VERSION=$APP_VERSION
 
 COPY package*.json ./
-# התקנה נקייה ומהירה של חבילות Production בלבד
-RUN npm ci --only=production && npm cache clean --force
+# 1. התקנת החבילות של האפליקציה
+# 2. ניקוי ה-Cache
+# 3. הסרת כלי ה-npm הגלובלי כליל (כדי שלא יישאר בתוך ה-Image ויגרום להתרעות Trivy)
+RUN npm ci --only=production && \
+    npm cache clean --force && \
+    rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 COPY . .
 
