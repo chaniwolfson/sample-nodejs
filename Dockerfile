@@ -2,7 +2,8 @@ FROM node:22-alpine
 
 # עדכון חבילות מערכת ההפעלה לגרסאות האבטחה העדכניות ביותר
 RUN apk update && apk upgrade --no-cache
-RUN npm install -g npm@latest
+# update global npm and clear its cache
+RUN npm install -g npm@latest && npm cache clean --force
 
 WORKDIR /app
 
@@ -11,7 +12,7 @@ ENV APP_VERSION=$APP_VERSION
 
 COPY package*.json ./
 # התקנה נקייה ומהירה של חבילות Production בלבד
-RUN npm ci --only=production
+RUN npm ci --only=production && npm cache clean --force
 
 COPY . .
 
