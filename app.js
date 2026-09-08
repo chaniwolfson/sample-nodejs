@@ -11,6 +11,11 @@ const register = new promClient.Registry();
 // קריאת הגרסה: קודם ממשתנה הסביבה (Production), ואם אינו קיים - מ-package.json (Dev)
 const APP_VERSION = process.env.APP_VERSION || packageJson.version;
 
+// קריאת משתני הסביבה שהוזרקו מה-ConfigMap
+const APP_ENV = process.env.APP_ENV || 'development';
+const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
+
+console.log(`App running in ${APP_ENV} mode with log level ${LOG_LEVEL}`);
 
 // Enable the collection of default metrics
 promClient.collectDefaultMetrics({ register });
