@@ -122,12 +122,18 @@ npm install
 # Start local server with custom configuration
 PORT=8080 APP_ENV=development LOG_LEVEL=debug npm start
 
-Bash
 helm upgrade --install sample-nodejs ./charts/sample-nodejs \
   --namespace default \
-  --set image.tag="v1.0.10"
+  --set image.tag="v1.0.15"
 
 git checkout main
 git pull origin main
 git tag v1.0.11
-git push origin v1.0.11
+git push origin v1.0.16
+
+```
+---
+![ArgoCD](assets/argocd.png)
+![Container is running in Kubernetes](assets/container in kubernetes.png)
+![Docker Hub - Private Repo](assets/docker-hub.png)
+![The Application](assets/my-app.png)
