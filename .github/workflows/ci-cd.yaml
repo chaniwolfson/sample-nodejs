@@ -143,6 +143,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Generate GitHub App Token
+        id: generate-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.GITOPS_APP_ID }}
+          private-key: ${{ secrets.GITOPS_APP_PRIVATE_KEY }}                                                                              
       - name: Update values.yaml image tag
         run: |
           sed -i 's/  tag: .*/  tag: "${{ needs.build-and-push.outputs.release_version  }}"/' ./charts/sample-nodejs/values.yaml
@@ -150,7 +157,7 @@ jobs:
         id: cpr
         uses: peter-evans/create-pull-request@v5
         with:
-          token: ${{ secrets.GITOPS_PAT }}
+          token: ${{ steps.generate-token.outputs.token }}
           branch: "auto-update-tag-${{ needs.build-and-push.outputs.release_version  }}"
           title: "chore(release): update helm chart image tag to ${{ needs.build-and-push.outputs.release_version }}"
           commit-message: "chore(release): update helm chart image tag to ${{ needs.build-and-push.outputs.release_version  }}"
@@ -162,4 +169,4 @@ jobs:
         if: steps.cpr.outputs.pull-request-operation == 'created'
         run: gh pr merge --auto --squash "${{ steps.cpr.outputs.pull-request-url }}"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITOPS_PAT }}
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
