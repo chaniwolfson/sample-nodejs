@@ -143,15 +143,23 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Update Helm Chart Image Tag and Push to Git
+      - name: Update values.yaml image tag
         run: |
-          git config user.name "Chani Wolfson (CI Bot)""
-          git config user.email "chaniwolfson@noreply.github.com"
-          
-          sed -i 's/  tag: .*/  tag: "${{ needs.build-and-push.outputs.release_version }}"/' ./charts/sample-nodejs/values.yaml
-          
-          git add ./charts/sample-nodejs/values.yaml
-          git commit -m "chore(release): update helm chart image tag to ${{ needs.build-and-push.outputs.release_version }} [skip ci]"
-          # דחיפה מ-HEAD אל ענף main ב-GitHub
-          git push origin HEAD:main
+          sed -i 's/  tag: .*/  tag: "${{ needs.build-and-push.outputs.release_version  }}"/' ./charts/sample-nodejs/values.yaml
+      - name: Create Pull Request
+        id: cpr
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITOPS_PAT }}
+          branch: "auto-update-tag-${{ needs.build-and-push.outputs.release_version  }}"
+          title: "chore(release): update helm chart image tag to ${{ needs.build-and-push.outputs.release_version }}"
+          commit-message: "chore(release): update helm chart image tag to ${{ needs.build-and-push.outputs.release_version  }}"
+          body: "Automated GitOps update of image tag to ${{ needs.build-and-push.outputs.release_version  }}"
+          base: "main"
+          delete-branch: true
+
+      - name: Enable Auto-Merge
+        if: steps.cpr.outputs.pull-request-operation == 'created'
+        run: gh pr merge --auto --squash "${{ steps.cpr.outputs.pull-request-url }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITOPS_PAT }}
