@@ -55,6 +55,8 @@ spec:
                 secretKeyRef:
                   name: {{ include "sample-nodejs.fullname" . }}-secret
                   key: dbPassword
+            - name: APP_VERSION
+              value: {{ .Values.image.tag | quote }}
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
