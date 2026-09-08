@@ -15,6 +15,7 @@ An enterprise-grade, fully automated GitOps CI/CD pipeline built using **GitHub 
 The underlying application is a lightweight, cloud-native Node.js Express service designed specifically for containerized Kubernetes workloads.
 
 * **Dynamic Port Configuration**: Application port is fully customizable via the `PORT` environment variable, configured dynamically through Helm `values.yaml`.
+* **Decoupled Configuration & Version Tracking**: Dynamically loads runtime environment variables (`APP_ENV`, `LOG_LEVEL`) from Kubernetes `ConfigMap` and app version (`APP_VERSION`) via Helm deployment values, exposed via `/my-app` and `/version` endpoints.
 * **Observability & Prometheus Integration**: Exposes application health, HTTP response statistics, and runtime metrics via a standard `/metrics` endpoint for Prometheus scraping.
 * **Kubernetes Health Probes**: Native readiness (`/ready`) and liveness (`/healthz`) endpoints ensuring reliable routing and pod self-healing.
 
@@ -31,7 +32,7 @@ The underlying application is a lightweight, cloud-native Node.js Express servic
 * **Rationale**: Keeps application logic and infrastructure code synchronized within a single source of truth. It simplifies developer feedback loops while maintaining tight coupling between application release versions and Helm manifest configurations.
 
 ### 3. Automated GitOps Promotion Flow
-* **Tag-Driven Triggers**: Pushing a semantic release tag (e.g., `v1.0.10`) initiates the end-to-end pipeline.
+* **Tag-Driven Triggers**: Pushing a semantic release tag (e.g., `v1.0.11`) initiates the end-to-end pipeline.
 * **Autonomous Manifest Updates**:
   1. The CI pipeline builds and pushes a verified, immutable Docker image tagged with the version number.
   2. The pipeline dynamically updates `charts/sample-nodejs/values.yaml` with the new image tag.
@@ -96,3 +97,27 @@ To enable fully autonomous GitOps PR generation and merging:
 3. Set the bypass privilege level to **`Exempt`**.
 
 ---
+
+## 🌐 Application Endpoints & Verification
+
+Once deployed, the application exposes the following endpoints for validation, monitoring, and debugging:
+
+| Endpoint | Method | Description | Source / Data Origin |
+| :--- | :--- | :--- | :--- |
+| `/my-app` | `GET` | Returns app status, `APP_ENV`, `LOG_LEVEL`, and `APP_VERSION` | ConfigMap & Deployment Env Vars |
+| `/version` | `GET` | Exposes current application version | Derived from `APP_VERSION` / `package.json` |
+| `/metrics` | `GET` | Prometheus metric collection endpoint | `prom-client` metrics exporter |
+| `/ready` | `GET` | Kubernetes Readiness Probe | Application readiness check |
+| `/live` | `GET` | Kubernetes Liveness Probe | Application health check |
+
+---
+
+## 🚀 Local Development & Execution
+
+### Running Locally
+```bash
+# Install dependencies
+npm install
+
+# Start local server with custom configuration
+PORT=8080 APP_ENV=development LOG_LEVEL=debug npm start

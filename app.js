@@ -5,16 +5,13 @@ const promClient = require('prom-client');
 const app = express();
 const port = process.env.PORT || 8080;
 
-// Create a Registry to register the metrics
-const register = new promClient.Registry();
-
-// קריאת הגרסה: קודם ממשתנה הסביבה (Production), ואם אינו קיים - מ-package.json (Dev)
-const APP_VERSION = process.env.APP_VERSION || packageJson.version;
-
-// קריאת משתני הסביבה שהוזרקו מה-ConfigMap
+// קריאת משתני הסביבה מה-ConfigMap וה-Deployment
 const APP_ENV = process.env.APP_ENV || 'development';
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
+const APP_VERSION = process.env.APP_VERSION || packageJson.version;
 
+// Create a Registry to register the metrics
+const register = new promClient.Registry();
 // Enable the collection of default metrics
 promClient.collectDefaultMetrics({ register });
 
@@ -62,5 +59,5 @@ app.get('/metrics', async (req, res) => {
 });
 
 app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+    console.log(`Server running on port ${port} [Env: ${APP_ENV}, LogLevel: ${LOG_LEVEL}, Version: ${APP_VERSION}]`);
 });
