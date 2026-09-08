@@ -17,7 +17,7 @@ The underlying application is a lightweight, cloud-native Node.js Express servic
 * **Dynamic Port Configuration**: Application port is fully customizable via the `PORT` environment variable, configured dynamically through Helm `values.yaml`.
 * **Decoupled Configuration & Version Tracking**: Dynamically loads runtime environment variables (`APP_ENV`, `LOG_LEVEL`) from Kubernetes `ConfigMap` and app version (`APP_VERSION`) via Helm deployment values, exposed via `/my-app` and `/version` endpoints.
 * **Observability & Prometheus Integration**: Exposes application health, HTTP response statistics, and runtime metrics via a standard `/metrics` endpoint for Prometheus scraping.
-* **Kubernetes Health Probes**: Native readiness (`/ready`) and liveness (`/healthz`) endpoints ensuring reliable routing and pod self-healing.
+* **Kubernetes Health Probes**: Native readiness (`/ready`) and liveness (`/health`) endpoints ensuring reliable routing and pod self-healing.
 
 ---
 
@@ -121,3 +121,13 @@ npm install
 
 # Start local server with custom configuration
 PORT=8080 APP_ENV=development LOG_LEVEL=debug npm start
+
+Bash
+helm upgrade --install sample-nodejs ./charts/sample-nodejs \
+  --namespace default \
+  --set image.tag="v1.0.10"
+
+git checkout main
+git pull origin main
+git tag v1.0.11
+git push origin v1.0.11
