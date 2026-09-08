@@ -141,18 +141,24 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
+      # 1. יצירת ה-Token מראש
       - name: Generate GitHub App Token
         id: generate-token
         uses: actions/create-github-app-token@v1
         with:
           app-id: ${{ secrets.GITOPS_APP_ID }}
-          private-key: ${{ secrets.GITOPS_APP_PRIVATE_KEY }}                                                                              
+          private-key: ${{ secrets.GITOPS_APP_PRIVATE_KEY }}
+
+      # 2. שימוש ב-Token שנוצר לצורך Checkout
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ steps.generate-token.outputs.token }}  
+      # 3. עדכון ה-Tag ב-values.yaml                                                                            
       - name: Update values.yaml image tag
         run: |
           sed -i 's/  tag: .*/  tag: "${{ needs.build-and-push.outputs.release_version  }}"/' ./charts/sample-nodejs/values.yaml
+      # 4. יצירת ה-Pull Request
       - name: Create Pull Request
         id: cpr
         uses: peter-evans/create-pull-request@v5
@@ -164,9 +170,10 @@ jobs:
           body: "Automated GitOps update of image tag to ${{ needs.build-and-push.outputs.release_version  }}"
           base: "main"
           delete-branch: true
-
+      # 5. הפעלת Auto-Merge
       - name: Enable Auto-Merge
         if: steps.cpr.outputs.pull-request-operation == 'created'
-        run: gh pr merge --auto --squash "${{ steps.cpr.outputs.pull-request-url }}"
+        run: gh pr merge --auto --squash "${{ steps.cpr.outputs.pull-request-url }}" || (sleep 5 && gh pr merge --auto --squash "${{ steps.cpr.outputs.pull-request-url }}")
         env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+        
