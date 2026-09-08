@@ -1,4 +1,4 @@
-# 🚀 Production-Ready GitOps & DevSecOps Pipeline
+# 🚀 Node.js App - GitOps & DevSecOps Pipeline
 
 ![Kubernetes](https://img.shields.io/badge/kubernetes-%23326CE5.svg?style=for-the-badge&logo=kubernetes&logoColor=white)
 ![Helm](https://img.shields.io/badge/Helm-0F1689?style=for-the-badge&logo=helm&logoColor=white)
