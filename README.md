@@ -137,3 +137,4 @@ git push origin v1.0.16
 ![Container is running in Kubernetes](assets/container.png)
 ![Docker Hub - Private Repo](assets/docker-hub.png)
 ![The Application](assets/my-app.png)
+![Pods](assets/get_pods.png)
